@@ -31,10 +31,6 @@ export default function FormInputRenderer({ field, value, onChange, error }: For
             // onBlur={() => onBlur?.(field.id)}
             placeholder={field.placeholder || ''}
             required={field.validation?.required}
-            min={field.validation?.min}
-            max={field.validation?.max}
-            minLength={field.validation?.minLength}
-            maxLength={field.validation?.maxLength}
             className={`${commonClasses} ${errorClasses}`}
             aria-invalid={!!error}
             aria-describedby={errorId}
@@ -49,9 +45,7 @@ export default function FormInputRenderer({ field, value, onChange, error }: For
             // onBlur={() => onBlur?.(field.id)}
             placeholder={field.placeholder || ''}
             required={field.validation?.required}
-            minLength={field.validation?.minLength}
-            maxLength={field.validation?.maxLength}
-            rows={4}
+            rows={field.rows || 3}
             className={`${commonClasses} ${errorClasses}`}
             aria-invalid={!!error}
             aria-describedby={errorId}
@@ -59,75 +53,71 @@ export default function FormInputRenderer({ field, value, onChange, error }: For
         );
       case 'checkbox':
         return (
-          <div className="flex items-center">
+          <div className="flex items-center mt-1">
             <input
               id={inputId}
               type="checkbox"
-              checked={!!value} // Convert to boolean
+              checked={!!value}
               onChange={(e) => onChange(e.target.checked)}
               // onBlur={() => onBlur?.(field.id)}
               required={field.validation?.required}
-              className={`h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:checked:bg-blue-500 ${errorClasses}`}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
               aria-invalid={!!error}
               aria-describedby={errorId}
             />
-            <label htmlFor={inputId} className="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-              {field.label}
+            <label htmlFor={inputId} className="ml-2 block text-sm text-gray-700 dark:text-gray-200">
+              {field.label} {field.validation?.required && <span className="text-red-500">*</span>}
             </label>
           </div>
         );
       case 'radio':
+        return (
+          <div className="mt-1 space-y-2">
+            {field.options?.map((option: FormFieldOption) => (
+              <div key={option.id} className="flex items-center">
+                <input
+                  id={`${inputId}-${option.value}`}
+                  name={field.id} // Name attribute is important for radio button groups
+                  type="radio"
+                  value={option.value}
+                  checked={value === option.value}
+                  onChange={(e) => onChange(e.target.value)}
+                  // onBlur={() => onBlur?.(field.id)}
+                  required={field.validation?.required}
+                  className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  aria-invalid={!!error}
+                  aria-describedby={errorId}
+                />
+                <label htmlFor={`${inputId}-${option.value}`} className="ml-2 block text-sm text-gray-700 dark:text-gray-200">
+                  {option.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        );
       case 'select':
         if (!field.options || field.options.length === 0) {
-          return <p className="text-red-500 dark:text-red-400 text-sm">No options defined for this field.</p>;
+          return <p className="mt-1 text-sm text-red-500 dark:text-red-400">No options defined for this select field.</p>;
         }
-        if (field.type === 'radio') {
-          return (
-            <div role="radiogroup" aria-labelledby={`${inputId}-label`}>
-              <p id={`${inputId}-label`} className="sr-only">{field.label}</p>
-              {field.options.map((option: FormFieldOption) => (
-                <div key={option.id} className="flex items-center mb-2">
-                  <input
-                    id={`${inputId}-${option.id}`}
-                    type="radio"
-                    name={field.id} // Group radio buttons
-                    value={option.value}
-                    checked={value === option.value}
-                    onChange={(e) => onChange(e.target.value)}
-                    // onBlur={() => onBlur?.(field.id)}
-                    required={field.validation?.required}
-                    className={`h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:checked:bg-blue-500 ${errorClasses}`}
-                    aria-invalid={!!error}
-                    aria-describedby={errorId}
-                  />
-                  <label htmlFor={`${inputId}-${option.id}`} className="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          );
-        } else { // select
-          return (
-            <select
-              id={inputId}
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              // onBlur={() => onBlur?.(field.id)}
-              required={field.validation?.required}
-              className={`${commonClasses} ${errorClasses}`}
-              aria-invalid={!!error}
-              aria-describedby={errorId}
-            >
-              <option value="" disabled>Select an option</option>
-              {field.options.map((option: FormFieldOption) => (
-                <option key={option.id} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          );
-        }
+        return (
+          <select
+            id={inputId}
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            // onBlur={() => onBlur?.(field.id)}
+            required={field.validation?.required}
+            className={`${commonClasses} ${errorClasses}`}
+            aria-invalid={!!error}
+            aria-describedby={errorId}
+          >
+            <option value="" disabled>Select an option</option>
+            {field.options.map((option: FormFieldOption) => (
+              <option key={option.id} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
       default:
         return <p className="text-red-500 dark:text-red-400 text-sm">Unsupported field type: {field.type}</p>;
     }
@@ -146,7 +136,11 @@ export default function FormInputRenderer({ field, value, onChange, error }: For
           {field.helpText}
         </p>
       )}
-      {/* Error message is rendered in the parent component (PreviewModal) to ensure consistent placement */}
+      {error && (
+        <p className="mt-1 text-sm text-red-600 dark:text-red-500" id={errorId} role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

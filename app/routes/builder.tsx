@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core'; // Added DragStartEvent type
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, UniqueIdentifier } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useState, useEffect, useMemo } from 'react';
@@ -8,7 +8,7 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 // --- Component Imports ---
 import { FieldPalette } from '../components/FieldPalette';
 import { FormCanvas } from '../components/FormCanvas';
-import FieldConfigPanel from '../components/FieldConfigPanel'; 
+import FieldConfigPanel from '../components/FieldConfigPanel';
 
 // Add this loader function
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -41,13 +41,13 @@ export default function FormBuilderPage() {
   const setCurrentStepIndex = storeState.setCurrentStepIndex;
   const updateField = storeState.updateField;
 
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
 
   // --- Defensive checks for data access ---
   const currentStep: FormStep | undefined = currentForm.steps?.[currentForm.currentStepIndex];
   const currentStepFieldIds: string[] = currentStep?.fieldIds ?? [];
 
-  const allFormFields = currentForm.fields ?? []; 
+  const allFormFields = currentForm.fields ?? [];
 
   const fieldsInCurrentStep: FormField[] = currentStepFieldIds
     .map(fieldId => allFormFields.find(f => f.id === fieldId))
@@ -69,7 +69,7 @@ export default function FormBuilderPage() {
   // --- END DEBUGGING LOGS ---
 
 
-  function handleDragStart(event: DragStartEvent) { // Use DragStartEvent type
+  function handleDragStart(event: DragStartEvent) {
     setActiveId(event.active.id);
     console.log("Drag Started:", event.active.id); // New log for drag start
   }
@@ -144,7 +144,7 @@ export default function FormBuilderPage() {
           <h1 className="text-2xl font-bold mb-6">{currentForm.title}</h1>
           <p className="text-gray-600 mb-8">{currentForm.description}</p>
 
-          <FormCanvas />
+          <FormCanvas /> {/* FormCanvas fetches data directly from store, no props needed here */}
         </main>
 
         {/* Right Sidebar: Field Configuration Panel */}

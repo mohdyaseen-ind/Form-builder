@@ -1,9 +1,10 @@
+// app/components/PreviewModal.tsx
 import { useState , useEffect} from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { Form, FormField, FormFieldValidation, FormStep } from '../state/formStore';
 import FormInputRenderer from '../components/FormInputRenderer'; // Re-using the renderer
-import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon, ComputerDesktopIcon, DeviceTabletIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/solid';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -11,10 +12,13 @@ interface PreviewModalProps {
   form: Form;
 }
 
+type PreviewMode = 'desktop' | 'tablet' | 'mobile';
+
 export default function PreviewModal({ isOpen, onClose, form }: PreviewModalProps) {
   const [currentPreviewStepIndex, setCurrentPreviewStepIndex] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop'); // New state for preview mode
 
   const currentPreviewStep = form.steps[currentPreviewStepIndex];
   const fieldsInCurrentPreviewStep = form.fields.filter(field => currentPreviewStep?.fieldIds.includes(field.id))
@@ -27,62 +31,69 @@ export default function PreviewModal({ isOpen, onClose, form }: PreviewModalProp
   const isFirstStep = currentPreviewStepIndex === 0;
   const isLastStep = currentPreviewStepIndex === form.steps.length - 1;
 
-  // Reset form data and errors when modal opens/closes or form changes
   useEffect(() => {
     if (isOpen) {
+      // Reset state when modal opens
+      setCurrentPreviewStepIndex(0);
       setFormData({});
       setFormErrors({});
-      setCurrentPreviewStepIndex(0);
+      setPreviewMode('desktop'); // Reset preview mode
     }
-  }, [isOpen, form]);
+  }, [isOpen]);
 
   const validateField = (field: FormField, value: any): string | null => {
-    const validation = field.validation;
-
-    if (!validation) return null;
-
-    // Required validation
-    if (validation.required) {
-      if (typeof value === 'string' && value.trim() === '') {
-        return 'This field is required.';
+    if (field.validation?.required && (value === undefined || value === null || value === '')) {
+      if (field.type === 'checkbox' && value === false) {
+        return `${field.label} is required.`;
       }
-      if (Array.isArray(value) && value.length === 0) { // For multi-select or checkboxes
-        return 'Please select at least one option.';
-      }
-      if (value === null || value === undefined) {
-        return 'This field is required.';
-      }
+      return `${field.label} is required.`;
     }
 
-    // Pattern validation (e.g., email)
-    if (validation.pattern === 'email' && typeof value === 'string' && value.trim() !== '') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(value)) {
-        return 'Please enter a valid email address.';
-      }
+    // Only validate if value is not empty, unless it's a required field
+    if (value !== undefined && value !== null && value !== '') {
+        if (field.type === 'email' && field.validation?.pattern) {
+            const emailRegex = new RegExp(field.validation.pattern);
+            if (!emailRegex.test(value)) {
+                return `Please enter a valid email address.`;
+            }
+        }
+        if (field.type === 'number' && field.validation?.pattern) {
+            const parts = field.validation.pattern.split(',').map(p => p.trim());
+            let min: number | undefined;
+            let max: number | undefined;
+
+            for (const part of parts) {
+                if (part.startsWith('min:')) {
+                    min = parseFloat(part.substring(4));
+                } else if (part.startsWith('max:')) {
+                    max = parseFloat(part.substring(4));
+                }
+            }
+
+            const numValue = parseFloat(value);
+            if (!isNaN(numValue)) {
+                if (min !== undefined && numValue < min) {
+                    return `${field.label} must be at least ${min}.`;
+                }
+                if (max !== undefined && numValue > max) {
+                    return `${field.label} must be at most ${max}.`;
+                }
+            } else {
+                return `Please enter a valid number for ${field.label}.`;
+            }
+        }
+        // Min/Max Length Validation for text and textarea
+        if ((field.type === 'text' || field.type === 'textarea') && typeof value === 'string') {
+            if (field.validation?.minLength !== undefined && value.length < field.validation.minLength) {
+                return `${field.label} must be at least ${field.validation.minLength} characters long.`;
+            }
+            if (field.validation?.maxLength !== undefined && value.length > field.validation.maxLength) {
+                return `${field.label} must be at most ${field.validation.maxLength} characters long.`;
+            }
+        }
     }
 
-    // Min/Max for numbers
-    if (field.type === 'number' && typeof value === 'number' && !isNaN(value)) {
-      if (validation.min !== undefined && value < validation.min) {
-        return `Value must be at least ${validation.min}.`;
-      }
-      if (validation.max !== undefined && value > validation.max) {
-        return `Value must be at most ${validation.max}.`;
-      }
-    }
-
-    // MinLength/MaxLength for text-based inputs
-    if (typeof value === 'string' && value.trim() !== '') {
-      if (validation.minLength !== undefined && value.length < validation.minLength) {
-        return `Must be at least ${validation.minLength} characters long.`;
-      }
-      if (validation.maxLength !== undefined && value.length > validation.maxLength) {
-        return `Cannot exceed ${validation.maxLength} characters.`;
-      }
-    }
-
-    return null; // No errors
+    return null;
   };
 
   const validateCurrentStep = (): boolean => {
@@ -90,48 +101,59 @@ export default function PreviewModal({ isOpen, onClose, form }: PreviewModalProp
     const newErrors: Record<string, string> = {};
 
     fieldsInCurrentPreviewStep.forEach(field => {
-      const value = formData[field.id];
-      const error = validateField(field, value);
+      const error = validateField(field, formData[field.id]);
       if (error) {
         newErrors[field.id] = error;
         isValid = false;
       }
     });
 
-    setFormErrors(prev => ({ ...prev, ...newErrors }));
+    setFormErrors(newErrors);
     return isValid;
   };
 
   const handleNextStep = () => {
     if (validateCurrentStep()) {
-      if (!isLastStep) {
-        setCurrentPreviewStepIndex(prev => prev + 1);
-        setFormErrors({}); // Clear errors when moving to next step
+      if (isLastStep) {
+        // Handle form submission logic here
+        console.log("Form Submitted:", formData);
+        alert("Form Submitted! Check console for data.");
+        onClose();
       } else {
-        // This is the last step, form is complete.
-        // In a real app, you'd submit formData to a backend.
-        alert('Form submitted successfully!\n' + JSON.stringify(formData, null, 2));
-        onClose(); // Close modal on successful submission
+        setCurrentPreviewStepIndex((prev) => prev + 1);
       }
     }
   };
 
   const handlePreviousStep = () => {
-    if (!isFirstStep) {
-      setCurrentPreviewStepIndex(prev => prev - 1);
-      setFormErrors({}); // Clear errors when moving back
+    setCurrentPreviewStepIndex((prev) => prev - 1);
+  };
+
+  const handleFieldChange = (fieldId: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [fieldId]: value }));
+    // Clear error for the field as soon as it's changed
+    if (formErrors[fieldId]) {
+      setFormErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldId];
+        return newErrors;
+      });
     }
   };
 
-  const handleChange = (fieldId: string, value: any) => {
-    setFormData(prev => ({ ...prev, [fieldId]: value }));
-    // Clear error for this field immediately on change
-    setFormErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[fieldId];
-      return newErrors;
-    });
+  // Determine dialog panel width based on preview mode
+  const getPanelWidthClass = () => {
+    switch (previewMode) {
+      case 'mobile':
+        return 'max-w-md'; // Roughly phone width
+      case 'tablet':
+        return 'max-w-3xl'; // Roughly tablet width
+      case 'desktop':
+      default:
+        return 'max-w-4xl'; // Wider for desktop
+    }
   };
+
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -145,7 +167,7 @@ export default function PreviewModal({ isOpen, onClose, form }: PreviewModalProp
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-75" />
+          <div className="fixed inset-0 bg-black bg-opacity-25" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -159,58 +181,89 @@ export default function PreviewModal({ isOpen, onClose, form }: PreviewModalProp
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all relative">
-                <button
-                  onClick={onClose}
-                  className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  aria-label="Close form preview"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
+              <Dialog.Panel className={`w-full ${getPanelWidthClass()} transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all`}>
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <Dialog.Title
+                      as="h3"
+                      className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+                    >
+                      {form.title}
+                    </Dialog.Title>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {currentPreviewStep.name || `Step ${currentPreviewStepIndex + 1}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Preview Mode Buttons */}
+                    <button
+                      onClick={() => setPreviewMode('desktop')}
+                      className={`p-2 rounded-md ${previewMode === 'desktop' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'} hover:bg-blue-600 dark:hover:bg-blue-600`}
+                      title="Desktop Preview"
+                      aria-label="Switch to Desktop Preview"
+                    >
+                      <ComputerDesktopIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => setPreviewMode('tablet')}
+                      className={`p-2 rounded-md ${previewMode === 'tablet' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'} hover:bg-blue-600 dark:hover:bg-blue-600`}
+                      title="Tablet Preview"
+                      aria-label="Switch to Tablet Preview"
+                    >
+                      <DeviceTabletIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => setPreviewMode('mobile')}
+                      className={`p-2 rounded-md ${previewMode === 'mobile' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200'} hover:bg-blue-600 dark:hover:bg-blue-600`}
+                      title="Mobile Preview"
+                      aria-label="Switch to Mobile Preview"
+                    >
+                      <DevicePhoneMobileIcon className="h-5 w-5" />
+                    </button>
 
-                <Dialog.Title
-                  as="h3"
-                  className="text-2xl font-bold leading-6 text-gray-900 dark:text-gray-100 mb-2"
-                >
-                  {form.title || "Untitled Form"}
-                </Dialog.Title>
-                {form.description && (
-                  <p className="text-gray-600 dark:text-gray-300 mb-6">{form.description}</p>
-                )}
+                    <button
+                      type="button"
+                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-100 dark:bg-blue-900 px-4 py-2 text-sm font-medium text-blue-900 dark:text-blue-100 hover:bg-blue-200 dark:hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      onClick={onClose}
+                      aria-label="Close Preview"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
 
+                {/* Progress Indicator */}
                 {form.steps.length > 1 && (
-                  <div className="mb-6 flex items-center justify-between text-gray-700 dark:text-gray-200">
-                    <span className="font-semibold">
-                      Step {currentPreviewStepIndex + 1} of {form.steps.length}: {currentPreviewStep?.name}
-                    </span>
+                  <div className="flex justify-center items-center gap-2 mb-4">
+                    {form.steps.map((_step, index) => (
+                      <div
+                        key={index}
+                        className={`w-3 h-3 rounded-full ${
+                          index === currentPreviewStepIndex ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                        title={`Step ${index + 1}`}
+                      ></div>
+                    ))}
                   </div>
                 )}
 
-
-                <div className="mt-2 space-y-5">
+                <div className="mt-2 space-y-4">
                   {fieldsInCurrentPreviewStep.length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400 italic">This step has no fields.</p>
+                    <p className="text-gray-500 dark:text-gray-400">No fields in this step.</p>
                   ) : (
                     fieldsInCurrentPreviewStep.map((field) => (
-                      <div key={field.id} className="relative">
-                        <FormInputRenderer
-                          field={field}
-                          value={formData[field.id]}
-                          onChange={(val) => handleChange(field.id, val)}
-                          error={formErrors[field.id]}
-                          // No onBlur in preview to simplify, validation happens on next/submit
-                        />
-                         {formErrors[field.id] && (
-                          <p className="mt-1 text-sm text-red-600 dark:text-red-400" id={`${field.id}-error`}>
-                            {formErrors[field.id]}
-                          </p>
-                        )}
-                      </div>
+                      <FormInputRenderer
+                        key={field.id}
+                        field={field}
+                        value={formData[field.id]}
+                        onChange={(val) => handleFieldChange(field.id, val)}
+                        error={formErrors[field.id]}
+                      />
                     ))
                   )}
                 </div>
 
-                <div className="mt-8 flex justify-between">
+                <div className="mt-4 flex justify-between">
                   <button
                     onClick={handlePreviousStep}
                     disabled={isFirstStep}

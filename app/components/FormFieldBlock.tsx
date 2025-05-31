@@ -17,7 +17,12 @@ export default function FormFieldBlock({ field, isSelected }: FormFieldBlockProp
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: field.id });
+  } = useSortable({
+    id: field.id,
+    data: {
+      type: 'field', // <--- IMPORTANT: Ensure this is set for correct drag-end detection
+    },
+  });
 
   const setSelectedFieldId = useFormStore((state) => state.setSelectedFieldId);
   const deleteField = useFormStore((state) => state.deleteField);
@@ -45,26 +50,27 @@ export default function FormFieldBlock({ field, isSelected }: FormFieldBlockProp
     <div
       ref={setNodeRef}
       style={style}
-      className={`
-        bg-white dark:bg-gray-700 p-4 rounded-md shadow-sm border
-        ${isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-200 dark:border-gray-600'}
-        flex items-center justify-between gap-4 relative
+      className={`p-4 mb-3 border rounded-lg bg-white shadow-sm flex items-center justify-between gap-4 transition-all duration-200
+        ${isSelected
+          ? 'border-blue-500 ring-2 ring-blue-500'
+          : 'border-gray-300 hover:border-gray-400'
+        }
+        ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'}
+        dark:bg-gray-700 dark:border-gray-600 dark:hover:border-gray-500
       `}
-      // The outer div is non-interactive. It's purely for layout/styling/DND ref.
-      // Its children handle interactions.
     >
-      {/*
-        The main content area (excluding action buttons) is a button.
-        This allows it to be focused and activated by keyboard, and is semantically correct.
-      */}
       <button
         onClick={handleSelectField}
-        className="flex-1 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-0 m-0 border-none bg-transparent"
-        type="button" // Essential for semantic correctness
-        aria-pressed={isSelected} // Indicate selection state
-        aria-label={`Field: ${field.label}, Type: ${field.type}. ${isSelected ? 'Currently selected for editing.' : 'Click to select for editing.'}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            handleSelectField(e);
+          }
+        }}
+        className="flex-grow flex flex-col items-start text-left focus:outline-none"
+        aria-label={`Select field: ${field.label}`}
+        tabIndex={0}
       >
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+        <label className="block text-base font-medium text-gray-700 dark:text-gray-200">
           {field.label} {field.validation?.required && <span className="text-red-500">*</span>}
         </label>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -88,10 +94,10 @@ export default function FormFieldBlock({ field, isSelected }: FormFieldBlockProp
         <button
           {...listeners}
           {...attributes}
-          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-grab active:cursor-grabbing p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
-          title="Drag to reorder"
+          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-grab p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+          title="Drag Field"
           type="button"
-          aria-label={`Drag to reorder field: ${field.label}`}
+          aria-label={`Drag field: ${field.label}`}
         >
           <Bars3Icon className="h-5 w-5" />
         </button>

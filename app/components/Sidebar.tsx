@@ -27,11 +27,10 @@ export default function Sidebar({ onAddField }: SidebarProps) {
           <li key={fieldType.type}>
             <button
               onClick={() => onAddField(fieldType.type)}
-              className="w-full flex items-center justify-start px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-              type="button"
+              className="w-full flex items-center justify-start px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md shadow-sm hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label={`Add ${fieldType.label} field`}
             >
-              <PlusCircleIcon className="h-5 w-5 mr-3 text-blue-500 dark:text-blue-400" />
+              <PlusCircleIcon className="h-5 w-5 mr-2" />
               {fieldType.label}
             </button>
           </li>

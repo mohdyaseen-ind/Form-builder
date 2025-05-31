@@ -45,13 +45,13 @@ export function FieldPalette() {
     { type: 'radio', label: 'Radio Button' },
     { type: 'select', label: 'Dropdown' },
     { type: 'date', label: 'Date Picker' },
-    { type: 'password', label: 'Password Input' },
+    { type: 'password', label: 'Password' },
   ];
 
   return (
-    <div>
-      {fieldTypes.map((field) => (
-        <DraggableFieldType key={field.type} type={field.type} label={field.label} />
+    <div className="space-y-3">
+      {fieldTypes.map((fieldType) => (
+        <DraggableFieldType key={fieldType.type} type={fieldType.type} label={fieldType.label} />
       ))}
     </div>
   );
