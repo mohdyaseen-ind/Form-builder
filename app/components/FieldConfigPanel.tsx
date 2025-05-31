@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FormField, FormFieldOption, FormStep } from '../state/formStore';
 import { v4 as uuidv4 } from 'uuid';
 import PlusIcon from '@heroicons/react/24/solid/PlusIcon';

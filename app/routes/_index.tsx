@@ -1,7 +1,7 @@
 import type { MetaFunction } from "@remix-run/node";
 import { useState, useRef } from "react"; // Import useRef
 import { useFormStore, FormFieldType, FormField } from "../state/formStore";
-import FormCanvas from "../components/FormCanvas"; // Correct path for your setup
+import {FormCanvas} from "../components/FormCanvas"; // Correct path for your setup
 import Sidebar from "../components/Sidebar";     // Correct path for your setup
 import FieldConfigPanel from "../components/FieldConfigPanel"; // Correct path for your setup
 import PreviewModal from "../components/PreviewModal"; // Correct path for your setup
