@@ -1,40 +1,23 @@
-# Welcome to Remix!
+🚀 Hypergro Assignment
+Welcome to the Remix Form Builder! This dynamic application lets you create custom web forms with a drag-and-drop interface, real-time configuration, and multi-step functionality.
 
-- 📖 [Remix docs](https://remix.run/docs)
+Building this project was a highly enjoyable and insightful process, demonstrating rapid development with modern web technologies. I'm excited to continue evolving and expanding its features!
 
-## Development
+Live Deployed Link - https://form-builder-three-ashy.vercel.app/
+Github - 
 
-Run the dev server:
+✨ Key Features
+Intuitive Drag-and-Drop: Easily add diverse form fields.
+Real-time Configuration: Customize field properties, including robust input validation.
+Auto-Save & Local Storage: Your work is automatically saved and can be loaded directly from your browser.
+Multi-Step Forms: Organize complex forms into logical steps.
+Customizable Form Details: Edit your form's title and description.
+Template Loading: Quickly start with predefined form layouts.
+Live Preview & JSON Export: See your form in action or its raw data.
+Shareable Form Links: Generate unique URLs for read-only previews.
+Responsive Design & Dark Mode: Adapts to all devices and preferences.
+Preview Modes: Different preview modes for Desktop, Tab and Mobile view
+Unique Id's for form Storage
 
-```shellscript
-npm run dev
-```
-
-## Deployment
-
-First, build your app for production:
-
-```sh
-npm run build
-```
-
-Then run the app in production mode:
-
-```sh
-npm start
-```
-
-Now you'll need to pick a host to deploy it to.
-
-### DIY
-
-If you're familiar with deploying Node applications, the built-in Remix app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-- `build/server`
-- `build/client`
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever css framework you prefer. See the [Vite docs on css](https://vitejs.dev/guide/features.html#css) for more information.
+🛠️ Technologies Used
+Remix, React, Zustand, Dnd Kit, Tailwind CSS, Heroicons.
