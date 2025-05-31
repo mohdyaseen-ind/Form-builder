@@ -1,35 +1,35 @@
+// app/components/FieldPalette.tsx
+import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import { FormFieldType } from '../state/formStore'; // Adjust path
+import { FormFieldType } from '../state/formStore';
+import { useFormStore } from '../state/formStore';
 import { TEMPLATES } from '../templates/templates';
 
-interface DraggableFieldTypeProps {
+interface DraggableFieldProps {
+  id: string;
   type: FormFieldType;
   label: string;
 }
 
-function DraggableFieldType({ type, label }: DraggableFieldTypeProps) {
-  // We use a unique ID for each palette item to distinguish it from actual form fields
-  const id = `palette-${type}`;
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: id,
+function DraggableField({ id, type, label }: DraggableFieldProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `palette-${id}`,
     data: {
       type: 'palette-item',
       fieldType: type,
     },
   });
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-  };
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
-      className="p-3 mb-3 bg-blue-500 text-white rounded-md cursor-grab active:cursor-grabbing hover:bg-blue-600 transition-colors"
+      // UPDATED CLASSES: blue, rectangular style
+      className={`p-3 border text-center cursor-grab transition-colors duration-200
+        text-white font-semibold
+        ${isDragging ? 'bg-blue-400 border-blue-500 opacity-75' : 'bg-blue-600 border-blue-700 hover:bg-blue-700'}
+        `}
     >
       {label}
     </div>
@@ -37,55 +37,58 @@ function DraggableFieldType({ type, label }: DraggableFieldTypeProps) {
 }
 
 export function FieldPalette() {
-  const fieldTypes: { type: FormFieldType; label: string }[] = [
-    { type: 'text', label: 'Text Input' },
-    { type: 'email', label: 'Email Input' },
-    { type: 'number', label: 'Number Input' },
-    { type: 'textarea', label: 'Text Area' },
-    { type: 'checkbox', label: 'Checkbox' },
-    { type: 'radio', label: 'Radio Button' },
-    { type: 'select', label: 'Dropdown' },
-    { type: 'date', label: 'Date Picker' },
-    { type: 'password', label: 'Password' },
-  ];
+  const setEntireForm = useFormStore(state => state.setEntireForm);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+
+  const handleLoadTemplate = () => {
+    if (selectedTemplateId) {
+      const templateToLoad = TEMPLATES.find(t => t.id === selectedTemplateId);
+      if (templateToLoad) {
+        setEntireForm(templateToLoad.form);
+        alert(`Template "${templateToLoad.name}" loaded successfully!`);
+        setSelectedTemplateId('');
+      } else {
+        alert(`Template "${selectedTemplateId}" not found in predefined templates.`);
+      }
+    }
+  };
 
   return (
-    <div className="space-y-3">
-      {fieldTypes.map((fieldType) => (
-        <DraggableFieldType key={fieldType.type} type={fieldType.type} label={fieldType.label} />
-      ))}
-      {/* NEW: Load Template Dropdown */}
-      <select
-                onChange={(e) => {
-                  const templateId = e.target.value;
-                  if (templateId) {
-                    const selectedTemplate = TEMPLATES.find(t => t.template.id === templateId)?.template;
-                    if (selectedTemplate) {
-                      // Prompt user before loading a template to prevent accidental data loss
-                      if (confirm("Loading a template will replace your current form. Are you sure you want to proceed?")) {
-                        loadForm(selectedTemplate.id); // Re-using loadForm as it handles setting form state
-                        alert(`Template "${selectedTemplate.title}" loaded successfully!`);
-                      }
-                    }
-                  }
-                  e.target.value = ''; // Reset select to default/placeholder
-                }}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 cursor-pointer"
-                defaultValue="" // Ensures placeholder is shown initially
-                aria-label="Load Form Template"
-              >
-                <option value="" disabled>Load Template...</option>
-                {TEMPLATES.map((t) => (
-                  <option key={t.template.id} value={t.template.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              {/* End NEW: Load Template Dropdown */}
+    <div className="space-y-4">
+      <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-md shadow-inner">
+        <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-100">Load Existing Form/Template</h3>
+        <select
+          value={selectedTemplateId}
+          onChange={(e) => setSelectedTemplateId(e.target.value)}
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md mb-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+        >
+          <option value="">-- Select a Template --</option>
+          {TEMPLATES.map(template => (
+            <option key={template.id} value={template.id}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={handleLoadTemplate}
+          disabled={!selectedTemplateId}
+          className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Load Template
+        </button>
+      </div>
+
+      <div className='flex flex-col gap-3'>
+        <DraggableField id="text-field" type="text" label="Text Input" />
+        <DraggableField id="email-field" type="email" label="Email Input" />
+        <DraggableField id="number-field" type="number" label="Number Input" />
+        <DraggableField id="textarea-field" type="textarea" label="Text Area" />
+        <DraggableField id="checkbox-field" type="checkbox" label="Checkbox" />
+        <DraggableField id="radio-field" type="radio" label="Radio Button" />
+        <DraggableField id="select-field" type="select" label="Select Dropdown" />
+        <DraggableField id="date-field" type="date" label="Date Picker" />
+        <DraggableField id="password-field" type="password" label="Password Input" />
+      </div>
     </div>
   );
 }
-
-
-
-

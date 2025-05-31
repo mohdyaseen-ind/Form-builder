@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+// app/routes/_index.tsx
+import { useState, useEffect } from 'react';
 import { useFormStore, FormFieldType, FormField } from '../state/formStore';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, DragEndEvent, UniqueIdentifier } from '@dnd-kit/core';
 import { createPortal } from 'react-dom';
 
 // Import UI components
-import Sidebar from '../components/Sidebar'; // Note: This Sidebar component is not used in this specific _index.tsx code, as FieldPalette is directly imported.
 import { FormCanvas } from '../components/FormCanvas';
 import FieldConfigPanel from '../components/FieldConfigPanel';
 import PreviewModal from '../components/PreviewModal';
 import JsonPreviewModal from '../components/JsonPreviewModal';
 import { FieldPalette } from '../components/FieldPalette';
-import { TEMPLATES } from '../templates/templates';
+// TEMPLATES are used internally by FieldPalette now, so no direct import here needed
 
 // Import Heroicons for buttons
-import { PlayIcon, DocumentArrowDownIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon, ArrowPathIcon, SunIcon, MoonIcon, CodeBracketIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/solid'; // NEW: Bars3Icon, XMarkIcon for mobile menu
-import { useThemeStore } from '../state/themeStore';
+import { PlayIcon, DocumentArrowDownIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon, ArrowPathIcon, SunIcon, MoonIcon, CodeBracketIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/solid';
+import { useThemeStore } from '../state/themeStore'; // Assuming you have a theme store
 
 export default function Index() {
   // Destructure state and actions from your Zustand form store
@@ -44,14 +44,15 @@ export default function Index() {
   const [isJsonPreviewOpen, setIsJsonPreviewOpen] = useState(false);
   const [formIdInput, setFormIdInput] = useState('');
   const [shareLink, setShareLink] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // NEW: State for mobile sidebar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State for mobile sidebar visibility
 
   // Define toggle functions
   const togglePreview = () => setIsPreviewOpen(!isPreviewOpen);
   const toggleJsonPreview = () => setIsJsonPreviewOpen(!isJsonPreviewOpen);
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen); // NEW: Toggle sidebar function
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen); // Toggle sidebar function
 
   // Derive the field currently being dragged for the DragOverlay
+  // This helps visualize what's being dragged over various zones
   const activeFieldBeingDragged = activeId ? form.fields.find(f => f.id === activeId) : null;
 
   // Safely get the current step object and fields within it
@@ -85,6 +86,7 @@ export default function Index() {
     }
 
     // Logic for reordering existing fields within the canvas
+    // This part is crucial for making placement "easy" by allowing reordering
     if (activeData?.type === 'field' && overData?.type === 'field') {
       // Ensure both active and over IDs are valid field IDs in the current step
       const freshStep = form.steps[form.currentStepIndex];
@@ -129,7 +131,8 @@ export default function Index() {
   const handleNewForm = () => {
     if (confirm("Are you sure you want to start a new form? Any unsaved changes will be lost.")) {
       resetForm();
-      setFormIdInput(form.id); // Reset input to new form's ID
+      // After resetForm, form.id will be a new UUID, so update formIdInput
+      setFormIdInput(form.id);
     }
   };
 
@@ -142,7 +145,7 @@ export default function Index() {
 
   return (
     // Updated outer div for responsiveness
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200 overflow-auto"> {/* Changed h-screen to min-h-screen and overflow-hidden to overflow-auto, added flex-col lg:flex-row */}
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200 overflow-auto">
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
@@ -158,15 +161,9 @@ export default function Index() {
         </button>
 
         {/* Left Sidebar: Contains Field Palette - Responsive */}
-        {/*
-          - fixed inset-y-0 left-0 z-30: positions it for mobile slide-in
-          - w-64: fixed width
-          - transform transition-transform duration-300 ease-in-out: for slide animation
-          - ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}: controls slide in/out
-          - lg:static lg:translate-x-0 lg:flex-shrink-0: reverts to static positioning and visible on large screens
-        */}
         <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 p-4 shadow-lg overflow-y-auto transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:flex-shrink-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Field Types</h2>
+          <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Field Types & Templates</h2>
+          {/* FieldPalette component manages its own template loading */}
           <FieldPalette />
         </aside>
 
@@ -194,7 +191,7 @@ export default function Index() {
               />
             </div>
 
-            {/* Save/Load/Reset/Preview/Theme Toggle Buttons - UPDATED CLASSES */}
+            {/* Save/Load/Reset/Preview/Theme Toggle Buttons */}
             <div className="flex flex-wrap items-center gap-2 justify-end">
               <input
                 type="text"
@@ -292,22 +289,18 @@ export default function Index() {
             </div>
           )}
 
-          {/* This section (Step Navigation and Actions) was removed as per previous request */}
-          {/* It is now handled solely in FieldConfigPanel */}
-
           {/* Main Content Area: Form Canvas and Field Configuration Panel - Responsive Grid */}
-          {/* On mobile/tablet, it's a single column. On large screens, it's 3 columns (2/3 for canvas, 1/3 for config) */}
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Changed grid-cols-3 to grid-cols-1 and added lg:grid-cols-3 */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form Canvas */}
-            <section className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto"> {/* Changed col-span-2 to col-span-1 and added lg:col-span-2 */}
+            <section className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto">
               <h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
                 Form Canvas - {currentStep?.name || 'Loading...'}
               </h2>
-              <FormCanvas />
+              <FormCanvas /> {/* FormCanvas is where fields are dropped and reordered */}
             </section>
 
             {/* Field Configuration Panel */}
-            <section className="col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto"> {/* col-span-1 remains, added lg:col-span-1 for clarity */}
+            <section className="col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto">
               <h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Field Configuration</h2>
               <FieldConfigPanel
                 field={selectedField}
@@ -327,13 +320,16 @@ export default function Index() {
         </main>
 
         {/* DragOverlay: Renders the item being dragged for visual feedback */}
+        {/* Important for seeing what you're dragging, especially when placing fields */}
         {typeof document !== 'undefined' && createPortal(
           <DragOverlay>
             {activeId && activeFieldBeingDragged ? (
+              // This is the visual for dragging an *existing* field
               <div className="p-3 bg-blue-500 text-white rounded-md cursor-grabbing opacity-80">
                 {activeFieldBeingDragged.label}
               </div>
             ) : activeId?.toString().startsWith('palette-') ? (
+              // This is the visual for dragging a *new* field from the palette
               <div className="p-3 bg-blue-500 text-white rounded-md cursor-grabbing opacity-80">
                 {activeId.toString().replace('palette-', '').split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
               </div>
