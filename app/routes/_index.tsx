@@ -116,7 +116,7 @@ export default function Index() {
   // Handle loading a form from local storage
   const handleLoadForm = () => {
     if (formIdInput.trim()) {
-      const success = loadForm(formIdInput.trim());
+      const success = loadForm(formIdInput.trim());  
       if (!success) {
         alert(`Form with ID "${formIdInput.trim()}" not found.`);
       } else {
