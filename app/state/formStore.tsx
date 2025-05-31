@@ -1,9 +1,14 @@
 // app/state/formStore.ts
 import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import { WritableDraft } from 'immer'; // Import WritableDraft for accurate typing within immer's set
-import { v4 as uuidv4 } from 'uuid';
+import { immer } from 'zustand/middleware/immer'; // For mutable state updates
+import { persist, createJSONStorage } from 'zustand/middleware'; // NEW: For state persistence
+import { v4 as uuidv4 } from 'uuid'; // Using uuidv4 as per your preference
 
+// --- Constants ---
+const AUTO_SAVE_KEY = 'formBuilderLastEditedForm'; // Key for the auto-saved form in localStorage
+const SPECIFIC_FORMS_KEY = 'savedSpecificForms'; // Key for explicitly saved forms (for save/load actions)
+
+// --- Interfaces (Ensuring consistency with your provided code) ---
 export type FormFieldType = 'text' | 'email' | 'number' | 'textarea' | 'checkbox' | 'radio' | 'select' | 'date' | 'password';
 
 export interface FormFieldOption {
@@ -57,190 +62,207 @@ interface FormState {
   addStep: () => void;
   deleteStep: (stepId: string) => void;
   setCurrentStep: (index: number) => void;
-  // New actions for saving/loading
-  saveForm: (formId: string) => boolean;
-  loadForm: (formId: string) => boolean;
+  saveForm: (formId: string) => boolean; // For explicit save to a specific ID
+  loadForm: (formId: string) => boolean; // For explicit load from a specific ID
   resetForm: () => void;
 }
 
-const initialFormState: Form = {
-  id: uuidv4(), // Assign a new ID when the store is initialized
+// Default initial form state (used if no auto-saved form is found)
+const getDefaultForm = (): Form => ({
+  id: uuidv4(), // Assign a new ID for a truly new form
   title: 'Untitled Form',
   description: 'A description for your form.',
   fields: [],
   steps: [{ id: uuidv4(), name: 'Step 1', fieldIds: [] }],
   currentStepIndex: 0,
-};
+});
 
 export const useFormStore = create<FormState>()(
-  // Explicitly define middleware types for immer
-  immer<FormState, [], [['zustand/immer', never]]>(
-    (set, get) => ({
-      form: initialFormState,
-      selectedFieldId: null,
+  // NEW: Wrap the Immer middleware with the Persist middleware
+  // The 'persist' middleware automatically handles loading/saving state
+  persist(
+    // Immer middleware for mutable state updates.
+    // We simplify the generic type to just <FormState> as `persist` handles the chaining.
+    immer<FormState>(
+      (set, get) => ({
+        // Initial state for the store. 'persist' will attempt to rehydrate this 'form'
+        // from localStorage if data exists under AUTO_SAVE_KEY.
+        form: getDefaultForm(), // Initialize with a default form
+        selectedFieldId: null,
 
-      addField: (type) =>
-        set((state: WritableDraft<FormState>) => { // Ensure state is typed as WritableDraft
-          const newField: FormField = {
-            id: uuidv4(),
-            type,
-            label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
-            validation: {},
-          };
+        // --- Actions ---
 
-          if (type === 'select' || type === 'radio' || type === 'checkbox') {
-            newField.options = [{ id: uuidv4(), label: 'Option 1', value: 'option1' }];
-          }
+        addField: (type) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            const newField: FormField = {
+              id: uuidv4(), // Using uuidv4
+              type,
+              label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
+              validation: {},
+            };
 
-          state.form.fields.push(newField);
-          // Add the new field to the current step's fieldIds
-          if (state.form.steps.length > 0) {
-            state.form.steps[state.form.currentStepIndex].fieldIds.push(newField.id);
-          }
-        }),
-
-      deleteField: (id) =>
-        set((state: WritableDraft<FormState>) => {
-          state.form.fields = state.form.fields.filter((field) => field.id !== id);
-          // Also remove from all step fieldIds
-          state.form.steps.forEach(step => {
-            step.fieldIds = step.fieldIds.filter(fieldId => fieldId !== id);
-          });
-          if (state.selectedFieldId === id) {
-            state.selectedFieldId = null;
-          }
-        }),
-
-      updateField: (id, updates) =>
-        set((state: WritableDraft<FormState>) => {
-          const fieldIndex = state.form.fields.findIndex((field) => field.id === id);
-          if (fieldIndex !== -1) {
-            state.form.fields[fieldIndex] = { ...state.form.fields[fieldIndex], ...updates };
-          }
-        }),
-
-      reorderField: (activeId, overId) =>
-        set((state: WritableDraft<FormState>) => {
-          const currentStep = state.form.steps[state.form.currentStepIndex];
-          const oldIndex = currentStep.fieldIds.indexOf(activeId);
-          const newIndex = currentStep.fieldIds.indexOf(overId);
-
-          if (oldIndex !== -1 && newIndex !== -1) {
-            const [movedFieldId] = currentStep.fieldIds.splice(oldIndex, 1);
-            currentStep.fieldIds.splice(newIndex, 0, movedFieldId);
-          }
-        }),
-
-      setSelectedFieldId: (id) =>
-        set((state: WritableDraft<FormState>) => {
-          state.selectedFieldId = id;
-        }),
-
-      setFormTitle: (title) =>
-        set((state: WritableDraft<FormState>) => {
-          state.form.title = title;
-        }),
-
-      setFormDescription: (description) =>
-        set((state: WritableDraft<FormState>) => {
-          state.form.description = description;
-        }),
-
-      addStep: () =>
-        set((state: WritableDraft<FormState>) => {
-          const newStep: FormStep = {
-            id: uuidv4(),
-            name: `Step ${state.form.steps.length + 1}`,
-            fieldIds: [],
-          };
-          state.form.steps.push(newStep);
-          state.form.currentStepIndex = state.form.steps.length - 1; // Auto-select new step
-        }),
-
-      deleteStep: (stepId) =>
-        set((state: WritableDraft<FormState>) => {
-          if (state.form.steps.length > 1) {
-            const deletedStepIndex = state.form.steps.findIndex(step => step.id === stepId);
-            if (deletedStepIndex !== -1) {
-              // Re-assign fields from deleted step to previous step if it exists, otherwise to first step
-              const fieldsToReassign = state.form.steps[deletedStepIndex].fieldIds;
-              state.form.steps.splice(deletedStepIndex, 1); // Remove the step
-
-              if (fieldsToReassign.length > 0) {
-                const targetStepIndex = Math.max(0, deletedStepIndex - 1);
-                state.form.steps[targetStepIndex].fieldIds.push(...fieldsToReassign);
-              }
-
-              // Adjust current step index if deleted step was current or after current
-              if (state.form.currentStepIndex >= state.form.steps.length) {
-                state.form.currentStepIndex = state.form.steps.length - 1;
-              }
+            if (type === 'select' || type === 'radio' || type === 'checkbox') {
+              newField.options = [{ id: uuidv4(), label: 'Option 1', value: 'option1' }];
             }
-          } else {
-            // If only one step left, clear its fields and rename it
-            state.form.steps[0].fieldIds = [];
-            state.form.steps[0].name = 'Step 1';
-          }
-        }),
 
-      setCurrentStep: (index) =>
-        set((state: WritableDraft<FormState>) => {
-          if (index >= 0 && index < state.form.steps.length) {
-            state.form.currentStepIndex = index;
-          }
-        }),
+            state.form.fields.push(newField);
+            if (state.form.steps.length > 0) {
+              state.form.steps[state.form.currentStepIndex].fieldIds.push(newField.id);
+            }
+            state.selectedFieldId = newField.id; // Select the new field by default
+          }),
 
-      // New: Save Form to localStorage
-      saveForm: (formId: string) => {
-        try {
-          const formToSave = get().form;
-          const savedForms = JSON.parse(localStorage.getItem('savedForms') || '{}');
-          savedForms[formId] = formToSave;
-          localStorage.setItem('savedForms', JSON.stringify(savedForms));
-          console.log(`Form "${formId}" saved successfully to localStorage!`);
-          return true;
-        } catch (error) {
-          console.error("Failed to save form to localStorage:", error);
-          return false;
-        }
-      },
-
-      // New: Load Form from localStorage
-      loadForm: (formId: string) => {
-        try {
-          const savedForms = JSON.parse(localStorage.getItem('savedForms') || '{}');
-          const loadedForm = savedForms[formId];
-          if (loadedForm) {
-            set((state: WritableDraft<FormState>) => {
-              state.form = loadedForm;
-              state.selectedFieldId = null; // Clear selected field on load
-              state.form.currentStepIndex = 0; // Reset to first step on load
+        deleteField: (id) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            state.form.fields = state.form.fields.filter((field) => field.id !== id);
+            state.form.steps.forEach(step => {
+              step.fieldIds = step.fieldIds.filter(fieldId => fieldId !== id);
             });
-            console.log(`Form "${formId}" loaded successfully from localStorage!`);
+            if (state.selectedFieldId === id) {
+              state.selectedFieldId = null;
+            }
+          }),
+
+        updateField: (id, updates) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            const fieldIndex = state.form.fields.findIndex((field) => field.id === id);
+            if (fieldIndex !== -1) {
+              state.form.fields[fieldIndex] = { ...state.form.fields[fieldIndex], ...updates };
+            }
+          }),
+
+        reorderField: (activeId, overId) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            const currentStep = state.form.steps[state.form.currentStepIndex];
+            const oldIndex = currentStep.fieldIds.indexOf(activeId);
+            const newIndex = currentStep.fieldIds.indexOf(overId);
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+              const [movedFieldId] = currentStep.fieldIds.splice(oldIndex, 1);
+              currentStep.fieldIds.splice(newIndex, 0, movedFieldId);
+            }
+          }),
+
+        setSelectedFieldId: (id) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            state.selectedFieldId = id;
+          }),
+
+        setFormTitle: (title) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            state.form.title = title;
+          }),
+
+        setFormDescription: (description) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            state.form.description = description;
+          }),
+
+        addStep: () =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            const newStep: FormStep = {
+              id: uuidv4(),
+              name: `Step ${state.form.steps.length + 1}`,
+              fieldIds: [],
+            };
+            state.form.steps.push(newStep);
+            state.form.currentStepIndex = state.form.steps.length - 1; // Auto-select new step
+          }),
+
+        deleteStep: (stepId) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            if (state.form.steps.length > 1) {
+              const deletedStepIndex = state.form.steps.findIndex(step => step.id === stepId);
+              if (deletedStepIndex !== -1) {
+                const fieldsToReassign = state.form.steps[deletedStepIndex].fieldIds;
+                state.form.steps.splice(deletedStepIndex, 1); // Remove the step
+
+                if (fieldsToReassign.length > 0) {
+                  const targetStepIndex = Math.max(0, deletedStepIndex - 1);
+                  state.form.steps[targetStepIndex].fieldIds.push(...fieldsToReassign);
+                }
+
+                if (state.form.currentStepIndex >= state.form.steps.length) {
+                  state.form.currentStepIndex = state.form.steps.length - 1;
+                }
+              }
+            } else {
+              state.form.steps[0].fieldIds = [];
+              state.form.steps[0].name = 'Step 1';
+            }
+          }),
+
+        setCurrentStep: (index) =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            if (index >= 0 && index < state.form.steps.length) {
+              state.form.currentStepIndex = index;
+            }
+          }),
+
+        // Explicit Save Form: Saves the current form to localStorage under a specific ID
+        saveForm: (formId: string) => {
+          try {
+            const currentForm = get().form;
+            const formToSave = { ...currentForm, id: formId }; // Ensure the saved form gets the ID provided by the user
+
+            // Store specific forms in a nested object keyed by their ID
+            const savedForms = JSON.parse(localStorage.getItem(SPECIFIC_FORMS_KEY) || '{}');
+            savedForms[formId] = formToSave;
+            localStorage.setItem(SPECIFIC_FORMS_KEY, JSON.stringify(savedForms));
+
+            console.log(`Form "${formId}" saved successfully to localStorage!`);
             return true;
-          } else {
-            console.warn(`Form "${formId}" not found in localStorage.`);
+          } catch (error) {
+            console.error("Failed to save form to localStorage:", error);
             return false;
           }
-        } catch (error) {
-          console.error("Failed to load form from localStorage:", error);
-          return false;
-        }
-      },
+        },
 
-      // New: Reset Form to initial state
-      resetForm: () =>
-        set((state: WritableDraft<FormState>) => {
-          state.form = {
-            id: uuidv4(),
-            title: 'Untitled Form',
-            description: 'A description for your form.',
-            fields: [],
-            steps: [{ id: uuidv4(), name: 'Step 1', fieldIds: [] }],
-            currentStepIndex: 0,
-          };
-          state.selectedFieldId = null;
-        }),
-    })
+        // Explicit Load Form: Loads a form from localStorage using a specific ID
+        loadForm: (formId: string) => {
+          try {
+            const savedForms = JSON.parse(localStorage.getItem(SPECIFIC_FORMS_KEY) || '{}');
+            const loadedForm = savedForms[formId];
+            if (loadedForm) {
+              set((state) => { // Removed explicit WritableDraft typing here
+                state.form = loadedForm;
+                state.selectedFieldId = null; // Clear selected field on load
+                state.form.currentStepIndex = 0; // Reset to first step on load for consistency
+              });
+              console.log(`Form "${formId}" loaded successfully from localStorage!`);
+              return true;
+            } else {
+              console.warn(`Form "${formId}" not found in localStorage.`);
+              return false;
+            }
+          } catch (error) {
+            console.error("Failed to load form from localStorage:", error);
+            return false;
+          }
+        },
+
+        // Reset Form to its default empty state
+        resetForm: () =>
+          set((state) => { // Removed explicit WritableDraft typing here
+            state.form = getDefaultForm(); // Reset to the default form structure
+            state.selectedFieldId = null;
+          }),
+      })
+    ),
+    // --- Persist Middleware Options ---
+    {
+      name: AUTO_SAVE_KEY, // Name of the item in localStorage for auto-save
+      storage: createJSONStorage(() => localStorage), // Use standard localStorage for JSON serialization
+      // Only persist the 'form' object from the state
+      partialize: (state) => ({ form: state.form }),
+      // Optional: Add onRehydrateStorage for validation/debugging rehydration
+      onRehydrateStorage: (state) => {
+        console.log('Form store rehydrating...');
+        // You can add logic here to validate the rehydrated 'state' if needed
+      },
+      // You can add a version property for migrations if your state structure changes significantly
+      // version: 1,
+      // migrate: (persistedState, version) => { /* migration logic */ },
+    }
   )
 );

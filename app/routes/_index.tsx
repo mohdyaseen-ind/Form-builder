@@ -4,15 +4,16 @@ import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragStar
 import { createPortal } from 'react-dom';
 
 // Import UI components
-import Sidebar from '../components/Sidebar';
+import Sidebar from '../components/Sidebar'; // Note: This Sidebar component is not used in this specific _index.tsx code, as FieldPalette is directly imported.
 import { FormCanvas } from '../components/FormCanvas';
 import FieldConfigPanel from '../components/FieldConfigPanel';
-import PreviewModal from '../components/PreviewModal'; // Existing Preview Modal
-import JsonPreviewModal from '../components/JsonPreviewModal'; // NEW: JSON Preview Modal
+import PreviewModal from '../components/PreviewModal';
+import JsonPreviewModal from '../components/JsonPreviewModal';
 import { FieldPalette } from '../components/FieldPalette';
+import { TEMPLATES } from '../templates/templates';
 
 // Import Heroicons for buttons
-import { PlayIcon, DocumentArrowDownIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon, ArrowPathIcon, SunIcon, MoonIcon, CodeBracketIcon } from '@heroicons/react/24/solid'; // NEW: CodeBracketIcon for JSON
+import { PlayIcon, DocumentArrowDownIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon, ArrowPathIcon, SunIcon, MoonIcon, CodeBracketIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/solid'; // NEW: Bars3Icon, XMarkIcon for mobile menu
 import { useThemeStore } from '../state/themeStore';
 
 export default function Index() {
@@ -40,13 +41,15 @@ export default function Index() {
 
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isJsonPreviewOpen, setIsJsonPreviewOpen] = useState(false); // NEW: State for JSON preview modal
-  const [formIdInput, setFormIdInput] = useState(''); // State for the input field to save/load forms
-  const [shareLink, setShareLink] = useState(''); // State to hold the shareable link
+  const [isJsonPreviewOpen, setIsJsonPreviewOpen] = useState(false);
+  const [formIdInput, setFormIdInput] = useState('');
+  const [shareLink, setShareLink] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // NEW: State for mobile sidebar visibility
 
-  // Define togglePreview function
+  // Define toggle functions
   const togglePreview = () => setIsPreviewOpen(!isPreviewOpen);
-  const toggleJsonPreview = () => setIsJsonPreviewOpen(!isJsonPreviewOpen); // NEW: Toggle JSON preview
+  const toggleJsonPreview = () => setIsJsonPreviewOpen(!isJsonPreviewOpen);
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen); // NEW: Toggle sidebar function
 
   // Derive the field currently being dragged for the DragOverlay
   const activeFieldBeingDragged = activeId ? form.fields.find(f => f.id === activeId) : null;
@@ -138,20 +141,37 @@ export default function Index() {
   }, [form.id]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200 overflow-hidden">
+    // Updated outer div for responsiveness
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200 overflow-auto"> {/* Changed h-screen to min-h-screen and overflow-hidden to overflow-auto, added flex-col lg:flex-row */}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* Left Sidebar: Contains Field Palette */}
-        <aside className="w-64 bg-white dark:bg-gray-800 p-4 shadow-lg overflow-y-auto flex-shrink-0">
+        {/* Mobile Sidebar Toggle Button */}
+        <button
+          onClick={toggleSidebar}
+          className="lg:hidden fixed bottom-4 right-4 z-40 p-3 bg-blue-600 text-white rounded-full shadow-lg"
+          aria-label="Toggle Field Types Sidebar"
+        >
+          {isSidebarOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
+        </button>
+
+        {/* Left Sidebar: Contains Field Palette - Responsive */}
+        {/*
+          - fixed inset-y-0 left-0 z-30: positions it for mobile slide-in
+          - w-64: fixed width
+          - transform transition-transform duration-300 ease-in-out: for slide animation
+          - ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}: controls slide in/out
+          - lg:static lg:translate-x-0 lg:flex-shrink-0: reverts to static positioning and visible on large screens
+        */}
+        <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 p-4 shadow-lg overflow-y-auto transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:flex-shrink-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Field Types</h2>
           <FieldPalette />
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col p-6 overflow-y-auto"> {/* Changed to overflow-y-auto */}
+        <main className="flex-1 flex flex-col p-6 overflow-y-auto">
           {/* Form Header: Title, Description, and Action Buttons */}
           <div className="flex justify-between items-start mb-6 flex-shrink-0 flex-wrap gap-4">
             {/* Form Title and Description */}
@@ -174,8 +194,8 @@ export default function Index() {
               />
             </div>
 
-            {/* Save/Load/Reset/Preview/Theme Toggle Buttons */}
-            <div className="flex space-x-2 items-center flex-shrink-0">
+            {/* Save/Load/Reset/Preview/Theme Toggle Buttons - UPDATED CLASSES */}
+            <div className="flex flex-wrap items-center gap-2 justify-end">
               <input
                 type="text"
                 value={formIdInput}
@@ -184,6 +204,7 @@ export default function Index() {
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 aria-label="Form ID for Save/Load"
               />
+              
               <button
                 onClick={handleSaveForm}
                 className="flex items-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -220,7 +241,7 @@ export default function Index() {
               >
                 Share Form
               </button>
-              {/* NEW: View JSON Button */}
+              {/* View JSON Button */}
               <button
                 onClick={toggleJsonPreview}
                 className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -249,7 +270,6 @@ export default function Index() {
               <span className="block sm:inline overflow-auto whitespace-nowrap mr-4 flex-grow">{shareLink}</span>
               <button
                 onClick={() => {
-                  // FIX: Added try...catch for robust clipboard copying
                   try {
                     if (typeof navigator !== 'undefined' && navigator.clipboard) {
                       navigator.clipboard.writeText(shareLink);
@@ -272,18 +292,22 @@ export default function Index() {
             </div>
           )}
 
-          {/* Main Content Area: Form Canvas and Field Configuration Panel */}
-          <div className="flex-1 grid grid-cols-3 gap-6">
+          {/* This section (Step Navigation and Actions) was removed as per previous request */}
+          {/* It is now handled solely in FieldConfigPanel */}
+
+          {/* Main Content Area: Form Canvas and Field Configuration Panel - Responsive Grid */}
+          {/* On mobile/tablet, it's a single column. On large screens, it's 3 columns (2/3 for canvas, 1/3 for config) */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Changed grid-cols-3 to grid-cols-1 and added lg:grid-cols-3 */}
             {/* Form Canvas */}
-            <section className="col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto">
+            <section className="col-span-1 lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto"> {/* Changed col-span-2 to col-span-1 and added lg:col-span-2 */}
               <h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
-                Form Canvas - Step {currentStep?.name || 'Loading...'}
+                Form Canvas - {currentStep?.name || 'Loading...'}
               </h2>
               <FormCanvas />
             </section>
 
             {/* Field Configuration Panel */}
-            <section className="col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto">
+            <section className="col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md overflow-y-auto"> {/* col-span-1 remains, added lg:col-span-1 for clarity */}
               <h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Field Configuration</h2>
               <FieldConfigPanel
                 field={selectedField}
@@ -324,7 +348,7 @@ export default function Index() {
         <PreviewModal isOpen={isPreviewOpen} onClose={togglePreview} form={form} />
       )}
 
-      {/* NEW: JSON Preview Modal */}
+      {/* JSON Preview Modal */}
       {isJsonPreviewOpen && (
         <JsonPreviewModal isOpen={isJsonPreviewOpen} onClose={toggleJsonPreview} formData={form} />
       )}

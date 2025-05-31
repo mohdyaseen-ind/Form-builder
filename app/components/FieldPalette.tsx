@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { FormFieldType } from '../state/formStore'; // Adjust path
+import { TEMPLATES } from '../templates/templates';
 
 interface DraggableFieldTypeProps {
   type: FormFieldType;
@@ -53,6 +54,38 @@ export function FieldPalette() {
       {fieldTypes.map((fieldType) => (
         <DraggableFieldType key={fieldType.type} type={fieldType.type} label={fieldType.label} />
       ))}
+      {/* NEW: Load Template Dropdown */}
+      <select
+                onChange={(e) => {
+                  const templateId = e.target.value;
+                  if (templateId) {
+                    const selectedTemplate = TEMPLATES.find(t => t.template.id === templateId)?.template;
+                    if (selectedTemplate) {
+                      // Prompt user before loading a template to prevent accidental data loss
+                      if (confirm("Loading a template will replace your current form. Are you sure you want to proceed?")) {
+                        loadForm(selectedTemplate.id); // Re-using loadForm as it handles setting form state
+                        alert(`Template "${selectedTemplate.title}" loaded successfully!`);
+                      }
+                    }
+                  }
+                  e.target.value = ''; // Reset select to default/placeholder
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 cursor-pointer"
+                defaultValue="" // Ensures placeholder is shown initially
+                aria-label="Load Form Template"
+              >
+                <option value="" disabled>Load Template...</option>
+                {TEMPLATES.map((t) => (
+                  <option key={t.template.id} value={t.template.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              {/* End NEW: Load Template Dropdown */}
     </div>
   );
 }
+
+
+
+
