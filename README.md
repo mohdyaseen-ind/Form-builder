@@ -1,6 +1,3 @@
-🚀 Hypergro Assignment
-Welcome to the Remix Form Builder! This dynamic application lets you create custom web forms with a drag-and-drop interface, real-time configuration, and multi-step functionality.
-
 Building this project was a highly enjoyable and insightful process, demonstrating rapid development with modern web technologies. I'm excited to continue evolving and expanding its features!
 
 Live Deployed Link - https://form-builder-three-ashy.vercel.app/
